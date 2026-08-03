@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, tokenStorage } from "../services/api";
+import { api, tokenStorage, registerAuthFailureCallback } from "../services/api";
 import { useRouter } from "expo-router";
 
 const AuthContext = createContext(undefined);
@@ -10,12 +10,31 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
+    // Register callback for API-driven logouts (e.g. token expired and couldn't refresh)
+    registerAuthFailureCallback(() => {
+      setUser(null);
+      tokenStorage.clear();
+      setTimeout(() => {
+        try {
+          router.replace("/");
+        } catch (e) {
+          console.warn("Failed to redirect to login during auth failure:", e);
+        }
+      }, 0);
+    });
+
     const loadStoredAuth = async () => {
       try {
-        const storedUser = await tokenStorage.getUser();
-        const storedToken = await tokenStorage.getAccessToken();
+        const [storedUser, storedToken] = await Promise.all([
+          tokenStorage.getUser(),
+          tokenStorage.getAccessToken()
+        ]);
         if (storedUser && storedToken) {
           setUser(storedUser);
+          // Verify token validity in the background
+          api.get("/courses").catch((err) => {
+            console.warn("Background session verification failed:", err);
+          });
         }
       } catch (e) {
         console.error("Error loading stored auth:", e);

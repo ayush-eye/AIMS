@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { Spacing } from "../constants/theme";
 import { useRouter } from "expo-router";
+import { getErrorMessage } from "../services/api";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,11 +45,7 @@ export default function LoginScreen() {
         await login(`+91${digitsOnly}`, "admin", { password: password.trim() });
       } catch (e) {
         console.error(e);
-        if (e.response && e.response.data && e.response.data.message) {
-          setError(e.response.data.message);
-        } else {
-          setError("Invalid admin mobile number or password.");
-        }
+        setError(getErrorMessage(e));
       }
     } else {
       // Student login
@@ -62,11 +59,7 @@ export default function LoginScreen() {
         }
       } catch (e) {
         console.error(e);
-        if (e.response && e.response.data && e.response.data.message) {
-          setError(e.response.data.message);
-        } else {
-          setError("Login failed. Please check your network connection.");
-        }
+        setError(getErrorMessage(e));
       }
     }
   };

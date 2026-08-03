@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StatusBar, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, TextInput, StatusBar, useWindowDimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Search, BookOpen, ChevronRight, ArrowLeft } from 'lucide-react-native';
+import { Search, ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCourses } from '../../services/studentApi';
 import { Spacing } from '../../constants/theme';
 import { useAppTheme } from '../../context/ThemeContext';
+import EmptyState from '../../components/EmptyState';
+import ErrorState from '../../components/ErrorState';
+import { CourseListSkeleton } from '../../components/SkeletonLoader';
+import { getErrorMessage } from '../../services/api';
 
 export default function CategoryCoursesScreen() {
   const { colors } = useAppTheme();
@@ -19,14 +23,17 @@ export default function CategoryCoursesScreen() {
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchCoursesData = async () => {
+    setError(null);
     try {
       const data = await getCourses();
       setCourses(data || []);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,9 +98,51 @@ export default function CategoryCoursesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
-        <Text style={styles.loadingText}>Loading courses...</Text>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {categoryTitle || 'Courses'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </View>
+        <View style={{ paddingTop: Spacing.three }}>
+          <CourseListSkeleton count={4} />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {categoryTitle || 'Courses'}
+            </Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState
+            title="Failed to Load Courses"
+            message={error}
+            onRetry={() => {
+              setLoading(true);
+              fetchCoursesData();
+            }}
+          />
+        </View>
       </View>
     );
   }
@@ -173,11 +222,21 @@ export default function CategoryCoursesScreen() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <BookOpen color={colors.textSecondary} size={48} />
-            <Text style={styles.emptyTitle}>No courses found</Text>
-            <Text style={styles.emptySubtitle}>{"We couldn't find any courses matching this category."}</Text>
-          </View>
+          searchQuery.trim() ? (
+            <EmptyState
+              icon="search"
+              title="No matching courses"
+              description={`No courses matching "${searchQuery}" in ${categoryTitle || 'this category'}.`}
+              actionLabel="Clear Search"
+              onAction={() => setSearchQuery('')}
+            />
+          ) : (
+            <EmptyState
+              icon="course"
+              title="No courses assigned"
+              description={`There are currently no courses available in ${categoryTitle || 'this category'}. Please check back later or contact AIM Institute.`}
+            />
+          )
         }
       />
     </View>

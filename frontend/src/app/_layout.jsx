@@ -16,17 +16,15 @@ function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const [isShowSplash, setIsShowSplash] = useState(true);
   const { colors } = useAppTheme();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsShowSplash(false);
-    }, 2000); // Show splash for 2 seconds
-    return () => clearTimeout(timer);
+    setIsMounted(true);
   }, []);
+
   useEffect(() => {
-    if (isShowSplash || loading) return;
+    if (!isMounted || loading) return;
 
     const inAdminGroup = segments[0] === "(admin)";
     const inStudentGroup = segments[0] === "(student)";
@@ -58,20 +56,7 @@ function RootLayoutNav() {
         }
       }
     }
-  }, [user, loading, segments, isShowSplash]);
-
-  if (isShowSplash) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#79B5E6" />
-        <Image
-          source={require("../../assets/images/welcome.png")}
-          style={styles.splashImage}
-          resizeMode="cover"
-        />
-      </View>
-    );
-  }
+  }, [user, loading, segments, isMounted]);
 
   if (loading) {
     return (
@@ -118,15 +103,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-  },
-  splashContainer: {
-    flex: 1,
-    backgroundColor: "#79B5E6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  splashImage: {
-    width: "100%",
-    height: "100%",
   },
 });

@@ -21,7 +21,9 @@ import { Spacing } from "../../constants/theme";
 import { useAppTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BookOpen, Users, UserCheck, ShieldAlert } from "lucide-react-native";
+import EmptyState from "../../components/EmptyState";
+import ErrorState from "../../components/ErrorState";
+import { MetricCardSkeleton, StudentCardSkeleton } from "../../components/SkeletonLoader";
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -66,8 +68,6 @@ export default function AdminDashboard() {
     }
   ];
 
-
-
   const handleProfileOption = (optionName) => {
     setProfileModalVisible(false);
     Alert.alert(
@@ -79,9 +79,11 @@ export default function AdminDashboard() {
   const [students, setStudents] = useState([]);
   const [coursesCount, setCoursesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
+    setError(null);
     try {
       const [studentsRes, coursesRes] = await Promise.all([
         api.get("/api/admin/students"),
@@ -91,6 +93,7 @@ export default function AdminDashboard() {
       setCoursesCount((coursesRes.data || []).length);
     } catch (e) {
       console.error("Error fetching dashboard data:", e);
+      setError("Failed to sync dashboard metrics. Please check network connection.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,8 +122,50 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <View style={styles.avatarContainer} />
+            <View style={styles.profileTextWrapper}>
+              <Text style={styles.headerNameText}>Loading Dashboard...</Text>
+            </View>
+          </View>
+        </View>
+        <View style={{ padding: Spacing.four, gap: Spacing.three }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </View>
+          <StudentCardSkeleton />
+          <StudentCardSkeleton />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <View style={styles.avatarContainer} />
+            <View style={styles.profileTextWrapper}>
+              <Text style={styles.headerNameText}>AIM Admin Dashboard</Text>
+            </View>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState
+            title="Dashboard Sync Failed"
+            message={error}
+            onRetry={() => {
+              setLoading(true);
+              fetchDashboardData();
+            }}
+          />
+        </View>
       </View>
     );
   }
@@ -314,11 +359,12 @@ export default function AdminDashboard() {
           </View>
 
           {pendingStudents.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>
-                No student accounts are currently awaiting approval.
-              </Text>
-            </View>
+            <EmptyState
+              icon="users"
+              title="No Pending Approvals"
+              description="All student registrations have been reviewed and approved."
+              containerStyle={{ paddingVertical: Spacing.three }}
+            />
           ) : (
             pendingStudents.slice(0, 5).map((student) => (
               <View key={student._id} style={styles.studentRow}>
