@@ -43,4 +43,8 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
+app.get("/health", (req, res) => {
+    res.status(200).json({ success: true, status: "ok", timestamp: new Date().toISOString() });
+});
+
 export default app;

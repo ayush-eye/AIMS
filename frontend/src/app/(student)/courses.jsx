@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image, TextInput, ActivityIndicator, StatusBar, useWindowDimensions, Linking, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, StatusBar, useWindowDimensions, Linking, Alert, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, ChevronRight, Menu, Bell } from 'lucide-react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCourses } from '../../services/studentApi';
 import { Spacing } from '../../constants/theme';
-import { useAuth } from '../../context/AuthContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { Menu, Bell, ChevronRight } from 'lucide-react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import EmptyState from '../../components/EmptyState';
+import ErrorState from '../../components/ErrorState';
+import { CourseListSkeleton, HomeSkeleton } from '../../components/SkeletonLoader';
+import { getErrorMessage } from '../../services/api';
 
 export default function CourseCatalogScreen() {
   useAuth();
@@ -48,6 +52,7 @@ export default function CourseCatalogScreen() {
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Carousel slider state & configurations
@@ -82,15 +87,15 @@ export default function CourseCatalogScreen() {
     }
   ];
 
-
-
   const fetchCoursesData = async () => {
+    setError(null);
     try {
       const data = await getCourses();
       setCourses(data || []);
       setFilteredCourses(data || []);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -133,9 +138,49 @@ export default function CourseCatalogScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
-        <Text style={styles.loadingText}>Loading AIM Institute...</Text>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.navBarRow}>
+            <TouchableOpacity style={styles.navIconBtn} onPress={() => router.push("/(student)/profile")}>
+              <Menu color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.navBarTitle}>AIM Institute</Text>
+            <TouchableOpacity style={styles.navIconBtn} onPress={() => Alert.alert("Notifications", "You have no new notifications.")}>
+              <Bell color="#FFFFFF" size={22} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: Spacing.four }}>
+          <HomeSkeleton />
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.headerCard}>
+          <View style={styles.navBarRow}>
+            <TouchableOpacity style={styles.navIconBtn} onPress={() => router.push("/(student)/profile")}>
+              <Menu color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.navBarTitle}>AIM Institute</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState
+            title="Unable to Load Courses"
+            message={error}
+            onRetry={() => {
+              setLoading(true);
+              fetchCoursesData();
+            }}
+          />
+        </View>
       </View>
     );
   }
@@ -351,11 +396,13 @@ export default function CourseCatalogScreen() {
         )}
         ListEmptyComponent={
           showCoursesList ? (
-            <View style={styles.emptyContainer}>
-              <BookOpen color={colors.textSecondary} size={48} />
-              <Text style={styles.emptyTitle}>No courses match your query</Text>
-              <Text style={styles.emptySubtitle}>Try browsing Classes 10th or 12th using the grid tiles above</Text>
-            </View>
+            <EmptyState
+              icon="search"
+              title="No courses match your query"
+              description={`We couldn't find any courses matching "${searchQuery}". Try searching for class titles or clear the filter.`}
+              actionLabel="Clear Search Filter"
+              onAction={() => setSearchQuery('')}
+            />
           ) : null
         }
       />
@@ -860,5 +907,26 @@ const getStyles = (colors, insets, width) => StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.accentBlue,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: Spacing.three,
+    height: 44,
+    marginTop: Spacing.four,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginLeft: Spacing.two,
+    paddingVertical: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
   },
 });

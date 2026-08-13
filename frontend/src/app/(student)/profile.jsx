@@ -6,6 +6,8 @@ import { User, LogOut, Phone, Shield, BookOpen, UserCheck, Edit3, Save, X, Mail,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spacing } from '../../constants/theme';
 
+import { getErrorMessage } from '../../services/api';
+
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuth();
   const { themeMode, selectThemeMode, colors } = useAppTheme();
@@ -63,7 +65,7 @@ export default function ProfileScreen() {
       Alert.alert("Success", "Profile updated successfully!");
     } catch (e) {
       console.error(e);
-      setError("Failed to update profile. Please try again.");
+      setError(getErrorMessage(e));
     } finally {
       setUpdating(false);
     }

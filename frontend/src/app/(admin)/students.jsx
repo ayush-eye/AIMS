@@ -10,11 +10,16 @@ import {
   Modal,
   FlatList,
   Alert,
+  StatusBar,
+  RefreshControl,
 } from "react-native";
 import api from "../../services/api";
 import { Spacing } from "../../constants/theme";
 import { useAppTheme } from "../../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import EmptyState from "../../components/EmptyState";
+import ErrorState from "../../components/ErrorState";
+import { StudentCardSkeleton } from "../../components/SkeletonLoader";
 
 export default function StudentsManagement() {
   const { colors } = useAppTheme();
@@ -24,6 +29,8 @@ export default function StudentsManagement() {
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -34,6 +41,7 @@ export default function StudentsManagement() {
   const [selectedCoursesForBulk, setSelectedCoursesForBulk] = useState([]);
 
   const fetchData = async () => {
+    setError(null);
     try {
       const [studentsRes, coursesRes] = await Promise.all([
         api.get("/api/admin/students"),
@@ -43,8 +51,10 @@ export default function StudentsManagement() {
       setCourses(coursesRes.data || []);
     } catch (e) {
       console.error("Error fetching students management data:", e);
+      setError("Failed to load students directory. Please check network connection.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -223,8 +233,37 @@ export default function StudentsManagement() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.header}>
+          <Text style={styles.title}>Students Management</Text>
+        </View>
+        <View style={{ paddingTop: Spacing.four }}>
+          <StudentCardSkeleton />
+          <StudentCardSkeleton />
+          <StudentCardSkeleton />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.header}>
+          <Text style={styles.title}>Students Management</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState
+            title="Failed to Load Students"
+            message={error}
+            onRetry={() => {
+              setLoading(true);
+              fetchData();
+            }}
+          />
+        </View>
       </View>
     );
   }
@@ -240,6 +279,7 @@ export default function StudentsManagement() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
       <View style={styles.header}>
         <Text style={styles.title}>Students Management</Text>
         <TextInput
@@ -276,6 +316,11 @@ export default function StudentsManagement() {
       <FlatList
         data={filteredStudents}
         keyExtractor={(item) => item._id}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          fetchData();
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.studentCard}
@@ -294,11 +339,21 @@ export default function StudentsManagement() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No students found in this section.
-            </Text>
-          </View>
+          search.trim() ? (
+            <EmptyState
+              icon="search"
+              title="No students match search"
+              description={`No student in ${activeTab} status matching "${search}".`}
+              actionLabel="Clear Search"
+              onAction={() => setSearch("")}
+            />
+          ) : (
+            <EmptyState
+              icon="users"
+              title={`No ${activeTab} students`}
+              description={`There are currently no students registered under the ${activeTab} status.`}
+            />
+          )
         }
       />
 

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Dimensions, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { FileText, ArrowLeft, ShieldAlert } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNotes } from '../../services/studentApi';
 import { Spacing } from '../../constants/theme';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -16,7 +17,41 @@ export default function LecturePlayerScreen() {
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [initialSeekTime, setInitialSeekTime] = useState(0);
+  const [seekTimeLoaded, setSeekTimeLoaded] = useState(false);
+  const lastSavedTimeRef = useRef(0);
   const router = useRouter();
+
+  useEffect(() => {
+    const loadPosition = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(`playback_position_${lectureId}`);
+        if (saved) {
+          const parsed = parseFloat(saved);
+          if (!isNaN(parsed) && parsed > 0) {
+            setInitialSeekTime(parsed);
+            lastSavedTimeRef.current = parsed;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load playback position:", e);
+      } finally {
+        setSeekTimeLoaded(true);
+      }
+    };
+    loadPosition();
+  }, [lectureId]);
+
+  const savePlaybackPosition = async (time) => {
+    if (Math.abs(time - lastSavedTimeRef.current) >= 2) {
+      lastSavedTimeRef.current = time;
+      try {
+        await AsyncStorage.setItem(`playback_position_${lectureId}`, time.toString());
+      } catch (e) {
+        console.warn("Failed to save playback position:", e);
+      }
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -711,7 +746,12 @@ export default function LecturePlayerScreen() {
 
           window.onYouTubeIframeAPIReady = function() {
             log("onYouTubeIframeAPIReady fired");
-            initPlayer();
+            var initialStart = parseFloat('${initialSeekTime}');
+            if (!isNaN(initialStart) && initialStart > 0) {
+              initPlayer({ start: Math.floor(initialStart) });
+            } else {
+              initPlayer();
+            }
           };
 
           function onPlayerReady(event) {
@@ -821,6 +861,13 @@ export default function LecturePlayerScreen() {
                   progressSlider.style.background = \`linear-gradient(to right, #ff0000 0%, #ff0000 \\\${pct}%, rgba(255,255,255,0.2) \\\${pct}%, rgba(255,255,255,0.2) 100%)\`;
                 }
                 timeDisplay.innerText = formatTime(current) + " / " + formatTime(duration);
+
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'progress',
+                    currentTime: current
+                  }));
+                }
               }
 
               // Update quality label dynamically
@@ -1057,6 +1104,27 @@ export default function LecturePlayerScreen() {
     </html>
   `;
 
+  if (!seekTimeLoaded) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <ArrowLeft color={colors.textLight} size={20} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerSubtitle}>Video Lecture</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>{lectureTitle}</Text>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.navyPrimary} />
+          <Text style={styles.loadingText}>Loading playback progress...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={isFullscreen ? { flex: 1, backgroundColor: '#000' } : styles.container}>
       <StatusBar hidden={isFullscreen} barStyle="light-content" backgroundColor={colors.navyPrimary} />
@@ -1103,6 +1171,8 @@ export default function LecturePlayerScreen() {
                     console.log("[WebView Console]", data.message);
                   } else if (data.type === 'fullscreen') {
                     handleFullscreenToggle(data.isFullscreen);
+                  } else if (data.type === 'progress') {
+                    savePlaybackPosition(data.currentTime);
                   }
                 } catch (e) {
                   // Not our JSON log

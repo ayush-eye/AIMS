@@ -127,6 +127,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+// Callback mechanism to notify AuthContext when an auth failure occurs (e.g. token expired & cannot refresh)
+let authFailureCallback = null;
+
+export const registerAuthFailureCallback = (callback) => {
+  authFailureCallback = callback;
+};
+
 // Response Interceptor: Handle Refresh Token
 let isRefreshing = false;
 let failedQueue = [];
@@ -147,11 +154,21 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
     // Avoid infinite loops on auth endpoints
     if (
       originalRequest.url?.includes("/api/auth/login") ||
       originalRequest.url?.includes("/api/auth/refresh-token")
     ) {
+      if (originalRequest.url?.includes("/api/auth/refresh-token")) {
+        await tokenStorage.clear();
+        if (authFailureCallback) {
+          authFailureCallback();
+        }
+      }
       return Promise.reject(error);
     }
 
@@ -173,6 +190,10 @@ api.interceptors.response.use(
       try {
         const refresh = await tokenStorage.getRefreshToken();
         if (!refresh) {
+          await tokenStorage.clear();
+          if (authFailureCallback) {
+            authFailureCallback();
+          }
           throw new Error("No refresh token available");
         }
 
@@ -199,8 +220,8 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
         await tokenStorage.clear();
-        if (unauthorizedCallback) {
-          unauthorizedCallback();
+        if (authFailureCallback) {
+          authFailureCallback();
         }
         return Promise.reject(refreshError);
       }
@@ -210,10 +231,50 @@ api.interceptors.response.use(
   },
 );
 
-let unauthorizedCallback = null;
+// Graceful network error message formatting
+export const getErrorMessage = (error) => {
+  if (!error) {
+    return "An unexpected error occurred. Please try again.";
+  }
+  
+  if (error.response) {
+    const status = error.response.status;
+    const data = error.response.data;
 
-export const registerUnauthorizedCallback = (cb) => {
-  unauthorizedCallback = cb;
+    if (data && typeof data.message === "string") {
+      return data.message;
+    }
+    if (data && typeof data.error === "string") {
+      return data.error;
+    }
+
+    switch (status) {
+      case 400:
+        return "Invalid request parameters. Please verify your details.";
+      case 401:
+        return "Your login session has expired. Please sign in again.";
+      case 403:
+        return "Access denied. You do not have permission to view this content.";
+      case 404:
+        return "The requested resource could not be found.";
+      case 429:
+        return "Too many requests. Please wait a moment and try again.";
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return "AIM server is experiencing issues. Please try again shortly.";
+      default:
+        return `Server returned an error (${status}). Please try again later.`;
+    }
+  }
+
+  if (error.request) {
+    return "Network connection issue. Please check your internet connection and try again.";
+  }
+
+  return error.message || "A connection error occurred. Please try again.";
 };
 
 export default api;
+

@@ -122,6 +122,16 @@ export default function NoteViewerScreen() {
             injectedJavaScript={DOCUMENT_PROTECTION_JS}
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView error: ', nativeEvent);
+              setLoading(false);
+            }}
+            renderError={(errorName) => (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load document: {errorName}</Text>
+              </View>
+            )}
           />
         ) : (
           <View style={styles.noDocumentContainer}>
@@ -219,5 +229,22 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.navyPrimary,
     marginTop: Spacing.three,
     fontWeight: '600',
+  },
+  errorContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.offWhite,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  errorText: {
+    color: colors.blocked,
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

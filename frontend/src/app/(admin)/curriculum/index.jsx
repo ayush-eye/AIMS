@@ -10,12 +10,17 @@ import {
   Modal,
   Alert,
   FlatList,
+  StatusBar,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import api from "../../../services/api";
 import { Spacing } from "../../../constants/theme";
 import { useAppTheme } from "../../../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import EmptyState from "../../../components/EmptyState";
+import ErrorState from "../../../components/ErrorState";
+import { CourseCardSkeleton } from "../../../components/SkeletonLoader";
 
 export default function CoursesList() {
   const { colors } = useAppTheme();
@@ -24,6 +29,8 @@ export default function CoursesList() {
   
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -33,13 +40,16 @@ export default function CoursesList() {
   const router = useRouter();
 
   const fetchCourses = async () => {
+    setError(null);
     try {
       const response = await api.get("/courses");
       setCourses(response.data || []);
     } catch (e) {
       console.error("Error fetching courses:", e);
+      setError("Failed to load curriculum workspace. Please check your network connection.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -112,14 +122,54 @@ export default function CoursesList() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.header}>
+          <View style={{ flex: 1, marginRight: Spacing.two }}>
+            <Text style={styles.headerTitle}>Course Workspace</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              Select a course to build chapters and materials.
+            </Text>
+          </View>
+        </View>
+        <View style={{ paddingTop: Spacing.four }}>
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
+        <View style={styles.header}>
+          <View style={{ flex: 1, marginRight: Spacing.two }}>
+            <Text style={styles.headerTitle}>Course Workspace</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              Select a course to build chapters and materials.
+            </Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorState
+            title="Workspace Unavailable"
+            message={error}
+            onRetry={() => {
+              setLoading(true);
+              fetchCourses();
+            }}
+          />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.navyPrimary} />
       <View style={styles.header}>
         <View style={{ flex: 1, marginRight: Spacing.two }}>
           <Text style={styles.headerTitle}>Course Workspace</Text>
@@ -140,6 +190,11 @@ export default function CoursesList() {
         data={courses}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContainer}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          fetchCourses();
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.courseCard}
@@ -182,17 +237,13 @@ export default function CoursesList() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No courses have been created yet.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => setModalVisible(true)}
-            >
-              <Text style={styles.emptyBtnText}>Create Your First Course</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="course"
+            title="No courses created yet"
+            description="Create your first course to start adding chapters, video lectures, and notes."
+            actionLabel="+ Create First Course"
+            onAction={() => setModalVisible(true)}
+          />
         }
       />
 

@@ -1,14 +1,23 @@
-import React from 'react';
-import { StyleSheet, View, Text, StatusBar, ScrollView } from 'react-native';
-import { Download, Inbox } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, StatusBar, ScrollView, RefreshControl } from 'react-native';
+import { Download } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spacing } from '../../constants/theme';
 import { useAppTheme } from '../../context/ThemeContext';
+import EmptyState from '../../components/EmptyState';
 
 export default function DownloadsScreen() {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, insets);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 600);
+  };
 
   return (
     <View style={styles.container}>
@@ -28,14 +37,21 @@ export default function DownloadsScreen() {
       </View>
 
       {/* Empty State */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.emptyCard}>
-          <Inbox color={colors.textSecondary} size={50} />
-          <Text style={styles.emptyTitle}>No downloads yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Notes and handouts you choose to save offline will appear here for access without an active internet connection.
-          </Text>
-        </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.navyPrimary}
+          />
+        }
+      >
+        <EmptyState
+          icon="inbox"
+          title="No downloads available"
+          description="Notes and study materials you choose to save offline will appear here for offline reading without an active internet connection."
+        />
       </ScrollView>
     </View>
   );

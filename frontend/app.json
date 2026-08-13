@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "AIM Academy Akot",
+    "name": "AIM Institute Akot",
     "slug": "aimacademy",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "aimacademy",
+    "scheme": "aiminstitute",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -18,9 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aimclasses.student",
-      "versionCode": 1,
-      "enableProguardInReleaseBuilds": true,
+      "package": "com.aiminstitute.student",
+      "versionCode": 2,
       "permissions": [
         "INTERNET",
         "VIBRATE"
@@ -32,16 +31,8 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
-        }
-      ]
+      "expo-font",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -50,8 +41,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "7fb435b6-fcc9-4c4b-857b-44bebb467d47"
+        "projectId": "3a39afd1-9f90-4dce-b7b5-dc3a9e43500f"
       }
-    }
+    },
+    "owner": "ayusheye"
   }
 }

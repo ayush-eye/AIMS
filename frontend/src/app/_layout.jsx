@@ -2,31 +2,34 @@ import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import {
-  ActivityIndicator,
   View,
   StyleSheet,
   StatusBar,
-  Image,
 } from "react-native";
-import { Colors } from "../constants/theme";
 
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
+import CustomSplashScreen from "../components/CustomSplashScreen";
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const [isShowSplash, setIsShowSplash] = useState(true);
   const { colors } = useAppTheme();
+  const [isMounted, setIsMounted] = useState(false);
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
+  const [minimumTimeElapsed, setMinimumTimeElapsed] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+    // Enforce a minimum display time of 1.2 seconds for the custom splash screen
     const timer = setTimeout(() => {
-      setIsShowSplash(false);
-    }, 2000); // Show splash for 2 seconds
+      setMinimumTimeElapsed(true);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
+
   useEffect(() => {
-    if (isShowSplash || loading) return;
+    if (!isMounted || loading) return;
 
     const inAdminGroup = segments[0] === "(admin)";
     const inStudentGroup = segments[0] === "(student)";
@@ -58,28 +61,28 @@ function RootLayoutNav() {
         }
       }
     }
-  }, [user, loading, segments, isShowSplash]);
+  }, [user, loading, segments, isMounted]);
 
-  if (isShowSplash) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#79B5E6" />
-        <Image
-          source={require("../../assets/images/welcome.png")}
-          style={styles.splashImage}
-          resizeMode="cover"
-        />
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.navyPrimary} />
-      </View>
-    );
-  }
+  // Check if navigation has completed redirection based on Auth state
+  const isRedirectComplete = () => {
+    if (loading) return false;
+    const currentSegment = segments[0];
+    if (!user) {
+      // If not logged in, we are ready if we are on the root login or register screen
+      return !currentSegment || currentSegment === "register";
+    } else {
+      // If logged in, we are ready if the segment matches user role/status
+      if (user.role === "admin") {
+        return currentSegment === "(admin)";
+      } else {
+        if (user.status === "pending" || user.status === "blocked") {
+          return currentSegment === "pending";
+        } else {
+          return currentSegment === "(student)";
+        }
+      }
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -94,6 +97,13 @@ function RootLayoutNav() {
         <Stack.Screen name="(admin)" />
         <Stack.Screen name="(student)" />
       </Stack>
+
+      {!splashAnimationDone && (
+        <CustomSplashScreen
+          isReady={!loading && isMounted && minimumTimeElapsed && isRedirectComplete()}
+          onAnimationComplete={() => setSplashAnimationDone(true)}
+        />
+      )}
     </View>
   );
 }
@@ -112,21 +122,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  splashContainer: {
-    flex: 1,
-    backgroundColor: "#79B5E6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  splashImage: {
-    width: "100%",
-    height: "100%",
   },
 });
