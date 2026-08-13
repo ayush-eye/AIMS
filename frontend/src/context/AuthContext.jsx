@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, tokenStorage } from "../services/api";
+import { api, tokenStorage, registerUnauthorizedCallback } from "../services/api";
 import { useRouter } from "expo-router";
 
 const AuthContext = createContext(undefined);
@@ -8,6 +8,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      router.replace("/");
+    };
+
+    registerUnauthorizedCallback(handleUnauthorized);
+
+    return () => {
+      registerUnauthorizedCallback(null);
+    };
+  }, [router]);
 
   useEffect(() => {
     const loadStoredAuth = async () => {

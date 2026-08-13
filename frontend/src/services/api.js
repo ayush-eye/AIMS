@@ -199,7 +199,9 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
         await tokenStorage.clear();
-        // Redirect or trigger logout
+        if (unauthorizedCallback) {
+          unauthorizedCallback();
+        }
         return Promise.reject(refreshError);
       }
     }
@@ -207,4 +209,11 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+let unauthorizedCallback = null;
+
+export const registerUnauthorizedCallback = (cb) => {
+  unauthorizedCallback = cb;
+};
+
 export default api;

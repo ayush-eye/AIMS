@@ -12,10 +12,19 @@ import lectureRoutes from "../features/lectures/lecture.routes.js";
 import noteRoutes from "../features/notes/note.routes.js";
 
 const app = express();
+app.set("etag", false);
 app.use(cors());
 app.use(compression());
 
 app.use(helmet());
+
+// Disable caching for all API responses to prevent HTTP 304 errors on React Native
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
 
 app.use(express.json());
 
