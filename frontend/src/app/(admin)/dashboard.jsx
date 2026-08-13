@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../../components/EmptyState";
 import ErrorState from "../../components/ErrorState";
 import { MetricCardSkeleton, StudentCardSkeleton } from "../../components/SkeletonLoader";
+import { BookOpen, Users, UserCheck, ShieldAlert } from "lucide-react-native";
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
