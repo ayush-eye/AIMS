@@ -2,7 +2,7 @@
   "expo": {
     "name": "AIM Institute Akot",
     "slug": "aimacademy",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "aiminstitute",
@@ -19,7 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.aiminstitute.student",
-      "versionCode": 2,
+      "versionCode": 4,
       "permissions": [
         "INTERNET",
         "VIBRATE"
